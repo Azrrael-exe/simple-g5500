@@ -1,0 +1,12 @@
+#ifndef PINOUT_H
+#define PINOUT_H
+
+#define AZIMUTH_PWM_PIN 10
+#define AZIMUTH_DIR_PIN 3
+#define AZIMUTH_SENSOR_PIN A0
+
+#define ELEVATION_PWM_PIN 9
+#define ELEVATION_DIR_PIN 2
+#define ELEVATION_SENSOR_PIN A1
+
+#endif
