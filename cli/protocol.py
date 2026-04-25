@@ -38,6 +38,15 @@ READ_VOLTAGE = 0xC0
 READ_ANGLE = 0xC1
 READ_ALL = 0xC2
 
+# GoTo constants
+GOTO_AZIMUTH = 0xDA
+GOTO_ELEVATION = 0xDB
+
+# System constants (max priority)
+SYSTEM_HEADER = 0xFF
+SYSTEM_KILL = 0x01
+SYSTEM_HOME = 0x02
+
 # Command name mappings
 AZIMUTH_COMMANDS = {
     'stop': AZIMUTH_STOP,
@@ -55,6 +64,11 @@ FEEDBACK_COMMANDS = {
     'voltage': READ_VOLTAGE,
     'angle': READ_ANGLE,
     'all': READ_ALL,
+}
+
+SYSTEM_COMMANDS = {
+    'kill': SYSTEM_KILL,
+    'home': SYSTEM_HOME,
 }
 
 
@@ -97,7 +111,10 @@ class LLPProtocol:
             >>> packet = protocol.create_packet(AZIMUTH_HEADER, AZIMUTH_FORWARD)
         """
         # Build payload: [HEADER, MSB, LSB]
-        payload = [header, 0x00, command]
+        val = command & 0xFFFF
+        msb = (val >> 8) & 0xFF
+        lsb = val & 0xFF
+        payload = [header, msb, lsb]
 
         # Calculate checksum of payload
         checksum = LLPProtocol.calculate_checksum(payload)
@@ -138,8 +155,20 @@ class LLPProtocol:
         elif header == ELEVATION_HEADER:
             axis = "Elevation"
             cmd_map = {v: k for k, v in ELEVATION_COMMANDS.items()}
+        elif header == FEEDBACK_HEADER:
+            axis = "Feedback"
+            cmd_map = {v: k for k, v in FEEDBACK_COMMANDS.items()}
+        elif header == SYSTEM_HEADER:
+            axis = "System"
+            cmd_map = {v: k for k, v in SYSTEM_COMMANDS.items()}
+        elif header == GOTO_AZIMUTH:
+            val = command if command < 32768 else command - 65536
+            return f"Azimuth GoTo {val / 10.0}°"
+        elif header == GOTO_ELEVATION:
+            val = command if command < 32768 else command - 65536
+            return f"Elevation GoTo {val / 10.0}°"
         else:
-            return f"Unknown (0x{header:02X}, 0x{command:02X})"
+            return f"Unknown (0x{header:02X}, 0x{command:04X})"
 
-        cmd_name = cmd_map.get(command, f"Unknown(0x{command:02X})")
+        cmd_name = cmd_map.get(command, f"Unknown(0x{command:04X})")
         return f"{axis} {cmd_name.capitalize()}"

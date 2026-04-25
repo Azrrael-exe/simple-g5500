@@ -117,6 +117,21 @@ Controls:
 Status: Azimuth: → RIGHT    | Elevation: ↑ UP
 ```
 
+### Interfaz Web Streamlit (Nueva)
+
+El proyecto cuenta con una interfaz web gráfica construida con Streamlit que te permite controlar el rotor desde el navegador, con auto-refresh de sensores y panel visual.
+
+```bash
+uv run streamlit_app.py
+```
+
+**Características**:
+- Control visual con botones para azimut y elevación
+- Parada de emergencia siempre visible
+- Selección de puerto desde un dropdown dinámico
+- Panel de métricas con voltajes y ángulos reales
+- Modo dry-run para previsualización
+
 ### Comando `move` - Controlar el Rotor
 
 El comando `move` permite controlar uno o ambos ejes del rotor.

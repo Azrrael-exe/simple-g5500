@@ -1,8 +1,14 @@
 #include <Arduino.h>
+#include <math.h>
 #include "axis_controller/axis_controller.h"
 #include "llp.h"
 #include "pinout.h"
 #include "protocol.h"
+
+// Mapea cualquier ángulo a [-180, 180). Ej: 270 -> -90, 450 -> 90.
+float wrapAzimuth(float deg) {
+    return fmodf(fmodf(deg + 180.0f, 360.0f) + 360.0f, 360.0f) - 180.0f;
+}
 
 // Función de calibración dummy para convertir voltaje a ángulo
 // TODO: Ajustar según las características reales del sensor
@@ -15,8 +21,8 @@ float dummyCalibration(float voltage) {
 float azimuthCalibration(float voltage) {
   float maxVoltage = 4.47;
   float minVoltage = 0.03;
-  float minAngle = 0;
-  float maxAngle = 447.1;
+  float minAngle = -223;
+  float maxAngle = 223;
   float angle = (voltage - minVoltage) / (maxVoltage - minVoltage) * (maxAngle - minAngle) + minAngle;
   return angle < minAngle ? minAngle : angle;
 }
@@ -38,8 +44,8 @@ AxisController elevationController(ELEVATION_PWM_PIN, ELEVATION_DIR_PIN,
 DataPack inputPack;
 DataPack outputPack;
 
-float azTarget = -1.0f;  // -1 = sin objetivo activo
-float elTarget = -1.0f;
+float azTarget = NAN;  // NaN = sin objetivo activo
+float elTarget = NAN;
 
 const float AZ_DEADBAND = 2.0f;  // grados
 const float EL_DEADBAND = 2.0f;
@@ -63,11 +69,11 @@ void loop() {
   float elAngle   = elevationCalibration(elVoltage);
 
   // Control bang-bang PRIMERO (prioridad alta — no debe ser bloqueado por serial)
-  if (azTarget >= 0.0f) {
+  if (!isnan(azTarget)) {
     float err = azTarget - azAngle;
     if (fabs(err) <= AZ_DEADBAND) {
       azimuthController.stop();
-      azTarget = -1.0f;
+      azTarget = NAN;
     } else if (err > 0) {
       azimuthController.move(255, true);   // forward
     } else {
@@ -75,11 +81,11 @@ void loop() {
     }
   }
 
-  if (elTarget >= 0.0f) {
+  if (!isnan(elTarget)) {
     float err = elTarget - elAngle;
     if (fabs(err) <= EL_DEADBAND) {
       elevationController.stop();
-      elTarget = -1.0f;
+      elTarget = NAN;
     } else if (err > 0) {
       elevationController.move(255, true);   // forward
     } else {
@@ -89,35 +95,44 @@ void loop() {
 
   // Procesamiento serial DESPUÉS (prioridad baja — puede bloquearse hasta setTimeout ms)
   if (inputPack.available(Serial)) {
-    // PRIORIDAD MÁXIMA: Sistema / Kill Switch
+    // PRIORIDAD MÁXIMA: Sistema / Kill Switch / Homing
     if (inputPack.hasKey(SYSTEM_HEADER)) {
       uint16_t command = inputPack.getData(SYSTEM_HEADER);
       if (command == SYSTEM_KILL) {
-        azTarget = -1.0f;
-        elTarget = -1.0f;
+        // Parada de emergencia: cancela cualquier objetivo activo y detiene motores.
+        azTarget = NAN;
+        elTarget = NAN;
         azimuthController.stop();
         elevationController.stop();
         return; // Detiene el procesamiento de cualquier otro comando en este paquete
+      }
+      if (command == SYSTEM_HOME) {
+        // Homing: azimuth al midpoint (~0°), elevación al midpoint del rango calibrado [0°, 180°] = 90°.
+        azTarget = -1.0f;
+        elTarget = 90.0f;
+        azimuthController.stop();
+        elevationController.stop();
+        return;
       }
     }
 
     if (inputPack.hasKey(AZIMUTH_HEADER)) {
       uint16_t command = inputPack.getData(AZIMUTH_HEADER);
-      azTarget = -1.0f;  // cualquier comando manual cancela el goto
+      azTarget = NAN;  // cualquier comando manual cancela el goto
       if (command == AZIMUTH_FORWARD)       azimuthController.move(255, false);
       else if (command == AZIMUTH_BACKWARD) azimuthController.move(255, true);
       else if (command == AZIMUTH_STOP)     azimuthController.stop();
     }
     if (inputPack.hasKey(ELEVATION_HEADER)) {
       uint16_t command = inputPack.getData(ELEVATION_HEADER);
-      elTarget = -1.0f;  // cualquier comando manual cancela el goto
+      elTarget = NAN;  // cualquier comando manual cancela el goto
       if (command == ELEVATION_FORWARD)       elevationController.move(255, true);
       else if (command == ELEVATION_BACKWARD) elevationController.move(255, false);
       else if (command == ELEVATION_STOP)     elevationController.stop();
     }
     if (inputPack.hasKey(GOTO_AZIMUTH)) {
       uint16_t raw = inputPack.getData(GOTO_AZIMUTH);
-      azTarget = (int16_t)raw / 10.0f;
+      azTarget = wrapAzimuth((int16_t)raw / 10.0f);
     }
     if (inputPack.hasKey(GOTO_ELEVATION)) {
       uint16_t raw = inputPack.getData(GOTO_ELEVATION);

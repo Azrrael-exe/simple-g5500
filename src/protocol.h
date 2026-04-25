@@ -24,5 +24,6 @@
 // Comandos de sistema (Prioridad Máxima)
 #define SYSTEM_HEADER 0xFF
 #define SYSTEM_KILL   0x01
+#define SYSTEM_HOME   0x02
 
 #endif
