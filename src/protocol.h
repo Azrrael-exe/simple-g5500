@@ -21,4 +21,8 @@
 #define GOTO_AZIMUTH   0xDA
 #define GOTO_ELEVATION 0xDB
 
+// Comandos de sistema (Prioridad Máxima)
+#define SYSTEM_HEADER 0xFF
+#define SYSTEM_KILL   0x01
+
 #endif
