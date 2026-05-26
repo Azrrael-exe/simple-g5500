@@ -62,15 +62,19 @@ bool AxisController::getDirection() const {
 
 // Lee el voltaje del sensor analógico
 float AxisController::getAxisVoltage() const {
-    // Verifica que el pin de feedback sea válido
     if (feedbackPin == 255) {
         return 0.0;
     }
 
-    int adcValue = analogRead(feedbackPin);
-    // Convierte el valor ADC (0-1023) a voltaje
-    // ADC de 10 bits: 0-1023 -> 0-vref voltios
-    return (adcValue / 1023.0) * vref;
+    // Promedia ADC_SAMPLES lecturas para reducir el ruido del ADC (~±1-2 LSB por muestra).
+    // Costo: ADC_SAMPLES × 104 µs = 832 µs para 8 muestras — aceptable dado que el rotor
+    // se mueve a ~7°/s (el movimiento durante ese tiempo es < 0.006°).
+    const uint8_t ADC_SAMPLES = 8;
+    uint16_t sum = 0;
+    for (uint8_t i = 0; i < ADC_SAMPLES; i++) {
+        sum += analogRead(feedbackPin);
+    }
+    return (sum / (ADC_SAMPLES * 1023.0)) * vref;
 }
 
 // Obtiene el ángulo usando la función de calibración

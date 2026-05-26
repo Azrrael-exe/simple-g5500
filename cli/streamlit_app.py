@@ -267,14 +267,19 @@ if st.button("Read Sensors"):
 m_col1, m_col2, m_col3, m_col4 = st.columns(4)
 fb = st.session_state.last_feedback
 
+az_angle   = f"{fb['az_angle']   / 10.0:.1f}°"   if 'az_angle'   in fb else '--'
+el_angle   = f"{fb['el_angle']   / 10.0:.1f}°"   if 'el_angle'   in fb else '--'
+az_voltage = f"{fb['az_voltage'] / 1000.0:.3f} V" if 'az_voltage' in fb else '--'
+el_voltage = f"{fb['el_voltage'] / 1000.0:.3f} V" if 'el_voltage' in fb else '--'
+
 with m_col1:
-    st.metric("Azimuth °", fb.get('az_angle', '--'))
+    st.metric("Azimuth °", az_angle)
 with m_col2:
-    st.metric("Elevation °", fb.get('el_angle', '--'))
+    st.metric("Elevation °", el_angle)
 with m_col3:
-    st.metric("Azimuth V", fb.get('az_voltage', '--'))
+    st.metric("Azimuth V", az_voltage)
 with m_col4:
-    st.metric("Elevation V", fb.get('el_voltage', '--'))
+    st.metric("Elevation V", el_voltage)
 
 # Auto-refresh loop
 if auto_refresh and st.session_state.connected:
